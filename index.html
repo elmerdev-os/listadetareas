@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List App</title>
+    <style>
+        :root {
+            --primary: #2196F3;
+            --dark: #1976D2;
+            --light: #BBDEFB;
+            --grey: #757575;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .task-form {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .task-input {
+            flex: 1;
+            padding: 0.8rem;
+            border: 2px solid var(--light);
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .task-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-add {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-add:hover {
+            background: var(--dark);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            color: var(--grey);
+        }
+
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 5px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .task-checkbox {
+            margin-right: 1rem;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 1rem;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            color: var(--grey);
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            padding: 0.5rem 1rem;
+            margin-left: 1rem;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .task-form {
+                flex-direction: column;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ Mi Lista de Tareas</h1>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="pending-count">0</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="completed-count">0</div>
+                <div class="stat-label">Completadas</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="total-count">0</div>
+                <div class="stat-label">Total</div>
+            </div>
+        </div>
+
+        <form class="task-form" id="task-form">
+            <input 
+                type="text" 
+                class="task-input" 
+                id="task-input" 
+                placeholder="Agregar nueva tarea..."
+                required
+            >
+            <button type="submit" class="btn btn-add">Agregar</button>
+        </form>
+
+        <ul class="task-list" id="task-list"></ul>
+    </div>
+
+    <script>
+        class TodoList {
+            constructor() {
+                this.tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+                this.taskForm = document.getElementById('task-form');
+                this.taskInput = document.getElementById('task-input');
+                this.taskList = document.getElementById('task-list');
+                this.pendingCount = document.getElementById('pending-count');
+                this.completedCount = document.getElementById('completed-count');
+                this.totalCount = document.getElementById('total-count');
+
+                this.init();
+            }
+
+            init() {
+                this.taskForm.addEventListener('submit', (e) => this.addTask(e));
+                this.renderTasks();
+                this.updateStats();
+            }
+
+            addTask(e) {
+                e.preventDefault();
+                const taskText = this.taskInput.value.trim();
+                
+                if(taskText) {
+                    const task = {
+                        id: Date.now(),
+                        text: taskText,
+                        completed: false,
+                        createdAt: new Date()
+                    };
+
+                    this.tasks.push(task);
+                    this.saveTasks();
+                    this.renderTasks();
+                    this.taskInput.value = '';
+                }
+            }
+
+            toggleTask(id) {
+                this.tasks = this.tasks.map(task => 
+                    task.id === id ? {...task, completed: !task.completed} : task
+                );
+                this.saveTasks();
+                this.renderTasks();
+            }
+
+            deleteTask(id) {
+                this.tasks = this.tasks.filter(task => task.id !== id);
+                this.saveTasks();
+                this.renderTasks();
+            }
+
+            renderTasks() {
+                this.taskList.innerHTML = '';
+                
+                this.tasks.sort((a, b) => b.createdAt - a.createdAt)
+                    .forEach(task => {
+                        const li = document.createElement('li');
+                        li.className = 'task-item';
+                        
+                        li.innerHTML = `
+                            <input 
+                                type="checkbox" 
+                                class="task-checkbox" 
+                                ${task.completed ? 'checked' : ''}
+                            >
+                            <span class="task-text ${task.completed ? 'completed' : ''}">
+                                ${task.text}
+                            </span>
+                            <button class="btn btn-delete">Eliminar</button>
+                        `;
+
+                        const checkbox = li.querySelector('.task-checkbox');
+                        checkbox.addEventListener('change', () => this.toggleTask(task.id));
+
+                        const deleteBtn = li.querySelector('.btn-delete');
+                        deleteBtn.addEventListener('click', () => this.deleteTask(task.id));
+
+                        this.taskList.appendChild(li);
+                    });
+
+                this.updateStats();
+            }
+
+            updateStats() {
+                const completed = this.tasks.filter(task => task.completed).length;
+                const total = this.tasks.length;
+                const pending = total - completed;
+
+                this.pendingCount.textContent = pending;
+                this.completedCount.textContent = completed;
+                this.totalCount.textContent = total;
+            }
+
+            saveTasks() {
+                localStorage.setItem('tasks', JSON.stringify(this.tasks));
+            }
+        }
+
+        // Inicializar la aplicación
+        const todoList = new TodoList();
+    </script>
+</body>
+</html>
